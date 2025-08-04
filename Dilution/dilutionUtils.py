@@ -103,6 +103,7 @@ def extract_fields(data):
 
 def time_diff_sec(start:str, end:str):
     """ Calculate the diffence in seconds between two times.
+        Parameters instantiated in configuration file.
     
         Parameters:
             start (string): "%H:%M:%S"
@@ -146,21 +147,25 @@ def get_measurement_values(bg_start_time_str:str, bg_end_time_str:str, trial_sta
     else:
         return ec_bg, bg_time, ec_trial, trial_time
     
-def compute_time_differences_in_seconds(time_list):
+def compute_time_differences_in_seconds(time_list_str):
     """
     Computes the difference in seconds between consecutive time values.
+    Parameters come from a list.
 
     Parameters:
-        time_list (list of datetime.time): The list of time values.
+        time_list_str (list of strings): The list of time values.
 
     Returns:
         list of float: Time differences in seconds between consecutive entries.
     """
+    
     diffs = []
     cumulative = [0.0]
-    for i in range(1, len(time_list)):
-        t1 = datetime.combine(datetime.min, time_list[i - 1])
-        t2 = datetime.combine(datetime.min, time_list[i])
+    for i in range(1, len(time_list_str)):
+        t1 = datetime.strptime(time_list_str[i - 1],"%H:%M:%S")
+        t2 = datetime.strptime(time_list_str[i],"%H:%M:%S")
+        #t1 = datetime.combine(datetime.min, time_list[i - 1])
+        #t2 = datetime.combine(datetime.min, time_list[i])
         delta_seconds = (t2 - t1).total_seconds()
         diffs.append(delta_seconds)
         cumulative.append(cumulative[-1] + delta_seconds)
@@ -170,6 +175,7 @@ def compute_time_differences_in_seconds(time_list):
 def secondary_solution_RC(injection_solution: float, Vo: float) -> float:
     """
     Calculate the relative concentration (RC) of the secondary solution.
+    Which is a sample of the injection solution mixed with 1L pure stream water.
 
     Parameters:
         injection_solution (float): Volume of the solute added (in mL).
@@ -254,10 +260,10 @@ def get_background_ec(start_time=None, end_time=None, ec_data=None):
         background_ec = data[:].mean()
         return background_ec
 
-def calculate_Q(ec_bg, ec_data, slope, time_step, injection_volume):
-    data = np.array(ec_data)
+def calculate_Q(ec_bg:float, ec_data:list, slope:float, bg_sec:int, trial_sec:int, time_step:Union[List[float], np.ndarray], injection_volume:float) -> float:
+    data = np.array(ec_data[bg_sec:trial_sec])
     ec_diff = (data - ec_bg) * slope
-    BTC_area = np.sum(np.multiply(ec_diff, time_step))
+    BTC_area = np.sum(np.multiply(ec_diff, time_step[bg_sec:trial_sec]))
     vol_m3 = injection_volume / 1000000 # convert ml to m^3
     Q = vol_m3 / BTC_area
     return Q
@@ -289,7 +295,7 @@ def plot_calibration(cal_data, RC):
     best_fit = [x * slope + intercept for x in x_range]
 
     # add the best fit line to the plot
-    ax.plot(x_range, best_fit, 'b--', label='Best Fit (R^2 = {:.2f})'.format(math.pow(r_value,2)))
+    ax.plot(x_range, best_fit, 'b--', label='Best Fit (R^2 = {:.2f})'.format(r_value**2))
     # by default a legend is not shown, so we need to call the attribute.
     plt.legend()
 
@@ -299,8 +305,8 @@ def plot_injection(data:dict,
                    total_diff:Union[List[float], np.ndarray],
                    show_background=False):
     """ Plot the data of interest"""
-    #ec_data = ec_data_trial_1['Actual Conductivity (µS/cm)']
-    bg_value = get_background_ec(0,bg_sec,data["Actual Conductivity (µS/cm)"][bg_sec:trial_sec])
+    ec_data = data[:len(time_elapsed)]
+    bg_value = get_background_ec(0,bg_sec,data)
     bg_values = bg_value * np.array(total_diff)
 
     fig, ax = plt.subplots(1, 1, figsize=(10,6))
@@ -310,16 +316,35 @@ def plot_injection(data:dict,
         ax.plot(time_elapsed[bg_sec:trial_sec], 
             data[bg_sec:trial_sec], 'go',
             label='Injection')
-        ax.plot(time_elapsed,data["Actual Conductivity (µS/cm)"], color='blue', label='Record')
+        ax.plot(time_elapsed,ec_data, color='blue', label='Record')
     else:
-        ax.plot(time_elapsed,data["Actual Conductivity (µS/cm)"], color='blue', label='Record')
+        ax.plot(time_elapsed,ec_data, color='blue', label='Record')
 
     
 
     # label the axes, and set the plot title
-    ax.set_xlabel('Day and Time')
+    ax.set_xlabel('Time Elapsed (s)')
     ax.set_ylabel('Temp. Compenstated Conductivity [uS/cm]')
     ax.set_title('Salt Dilution Measurement')
+    plt.legend()
+    plt.tight_layout()
+
+def plot_data(data, time):
+    """ this doesn't work. returns that conductivity list is a string..."""
+    fig, ax = plt.subplots(1, 1, figsize=(10,6))
+
+    # the .to_numpy() attribute converts to a vector in order to do vector operations
+    y_series = np.array(data)
+    x_series = np.array(time)
+
+    # add the calibration points to the plot
+    ax.plot(x_series, y_series, 'go', label="data")
+
+    ax.set_xlabel('Time (h:m:s)')
+    ax.set_ylabel('Conductivity')
+    ax.set_title('Salt Dilution Injection')
+
+    
     plt.legend()
     plt.tight_layout()
 

@@ -119,3 +119,4 @@ def get_measurement_time_values(start_time_str:str, end_time_str:str, data:dict,
         print(f"selecting {len(ec_data)} EC values beginning at {data['Date Time'][start_index]} to {data['Date Time'][end_index]}")
     else:
         return ec_bg, ec_data, time_list
+    
