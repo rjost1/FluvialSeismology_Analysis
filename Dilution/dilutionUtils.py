@@ -25,7 +25,7 @@ def load_config(path: str) -> Tuple[Dict[str, str], Dict[str, Any], Dict[str, in
         "bg_end":config["injection"]["bg_end"],
         "trial_start":config["injection"]["trial_start"],
         "trial_end":config["injection"]["trial_end"],
-        "record_end":config["injection"]["trial_end"]
+        "record_end":config["injection"]["record_end"]
     }
     calibration_dict = {
         "initial_volume_secondary": config["calibration"]["volume_secondary_solution"],
